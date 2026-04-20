@@ -343,6 +343,68 @@ tr.row-hold:hover td { background: #ECDEFF; }
 @media (max-width: 900px) {
   .dashboard { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* Tooltips */
+.tooltip-wrap { position: relative; display: inline-block; cursor: default; }
+.tooltip-wrap .tooltip {
+  visibility: hidden;
+  opacity: 0;
+  background: var(--gray-900);
+  color: var(--white);
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.5;
+  padding: 8px 10px;
+  border-radius: 6px;
+  position: absolute;
+  z-index: 100;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: normal;
+  width: 230px;
+  text-align: left;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+  transition: opacity .15s;
+  pointer-events: none;
+}
+.tooltip-wrap .tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: var(--gray-900);
+}
+.tooltip-wrap:hover .tooltip {
+  visibility: visible;
+  opacity: 1;
+}
+
+/* TOOLTIPS */
+.tooltip-wrap { position: relative; display: inline-block; }
+.tooltip-wrap .tooltip {
+  display: none;
+  position: fixed;
+  background: var(--gray-900);
+  color: var(--white);
+  font-size: 11px;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  padding: 7px 11px;
+  border-radius: 5px;
+  white-space: normal;
+  max-width: 240px;
+  text-align: left;
+  z-index: 9999;
+  pointer-events: none;
+  line-height: 1.5;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+}
+.tooltip-wrap:hover .tooltip { display: block; }
 </style>
 </head>
 <body>
@@ -460,23 +522,24 @@ function renderDashboard() {
 
 // ── COLUMNS ─────────────────────────────────────
 const COLS = [
-  { label: 'Game',       sort: 'name'     },
-  { label: 'Platform',   sort: 'platform' },
-  { label: 'Progress',   sort: 'gsWon'    },
-  { label: 'Est (Base)', sort: 'compEst'  },
-  { label: 'PPM',        sort: 'ppm'      },
-  { label: 'Site Ratio', sort: 'siteRatio'},
-  { label: 'Comp %',     sort: 'compPct'  },
-  { label: 'Est (DLC)',  sort: null       },
-  { label: 'Status',     sort: 'playStatus'},
-  { label: '',           sort: null       },
+  { label: 'Game',       sort: 'name',       tip: 'Game title. Click to open on TrueAchievements.' },
+  { label: 'Platform',   sort: 'platform',   tip: 'Console or platform this version runs on.' },
+  { label: 'Progress',   sort: 'gsWon',      tip: 'GamerScore earned vs total possible, including all DLC patches.' },
+  { label: 'Est (Base)', sort: 'compEst',    tip: 'Estimated time for the base game. PPM uses the MAX of each time bucket — not the average — to account for mastery time.' },
+  { label: 'PPM',        sort: 'ppm',        tip: 'Points Per Minute: GS remaining divided by max minutes. Higher = more efficient. Primary sort.' },
+  { label: 'Site Ratio', sort: 'siteRatio',  tip: 'TrueAchievements difficulty score. Lower is easier — 1.0 is trivial, 5.0+ is very hard. Secondary sort.' },
+  { label: 'Comp %',     sort: 'compPct',    tip: 'Percentage of TA players who fully completed this game. Low % with low ratio may mean bugged achievements.' },
+  { label: 'Est (DLC)',  sort: null,         tip: 'Estimated time including all DLC. Often misleading — staggered DLC patches stack time estimates.' },
+  { label: 'Status',     sort: 'playStatus', tip: 'Your play status from TrueAchievements. Set On Hold or Done With on TA to control visibility here.' },
+  { label: '',           sort: null,         tip: null },
 ];
 
 function renderHead() {
   document.getElementById('tHead').innerHTML = '<tr>' + COLS.map(c => {
     const s = sortCol === c.sort;
     const arr = c.sort ? (s ? (sortDir === 1 ? '▲' : '▼') : '⇅') : '';
-    return `<th class="${s ? 'sorted' : ''}" data-sort="${c.sort || ''}">${c.label}<span class="si">${arr}</span></th>`;
+    const tip = c.tip ? ` title="${c.tip}"` : '';
+    return `<th class="${s ? 'sorted' : ''}" data-sort="${c.sort || ''}"${tip}>${c.label}<span class="si">${arr}</span></th>`;
   }).join('') + '</tr>';
 }
 
@@ -585,9 +648,10 @@ function renderRow(g) {
     <span class="prog-label">${g.gsWon.toLocaleString()} / ${g.gsMax.toLocaleString()}G</span>
   </div>`;
 
-  const ppmCell = g.ppm !== null
-    ? `<span class="ppm">${g.ppm.toFixed(1)}</span>`
-    : '<span class="mono" style="color:var(--gray-400)">—</span>';
+  const ppmTip = g.ppm !== null
+    ? `${g.gsRemaining.toLocaleString()} GS ÷ ${(g.compEst||'?').replace(' hours','h').replace(' hour','h')} max = ${g.ppm.toFixed(1)} pts/min`
+    : 'No time data — PPM unknown';
+  const ppmCell = `<span class="tooltip-wrap"><span class="${g.ppm !== null ? 'ppm' : 'mono'}" style="${g.ppm === null ? 'color:var(--gray-400)' : ''}">${g.ppm !== null ? g.ppm.toFixed(1) : '—'}</span><span class="tooltip">${ppmTip}</span></span>`;
 
   const skipName = esc(g.name).replace(/&#39;/g, "\'");
 
